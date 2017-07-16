@@ -3,6 +3,7 @@ package com.sternjin.imbd.imbdgetter;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jsoup.HttpStatusException;
 import org.slf4j.Logger;
@@ -13,6 +14,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.io.ClassPathResource;
 
 import com.sternjin.imbd.imbdgetter.domain.Movie;
 
@@ -28,7 +30,7 @@ public class ImdbGetterApplication {
 
         try (ConfigurableApplicationContext context = SpringApplication.run(ImdbGetterApplication.class, args)) {
             ImdbGetterApplication app = context.getBean(ImdbGetterApplication.class);
-            app.run(null, null);
+            app.run(args[0]);
         }
 
     }
@@ -41,34 +43,53 @@ public class ImdbGetterApplication {
     @Autowired
     DataLoader dataLoader;
 
-    @Value("{file.import.location}")
-    String importFileLocation;
+    @Autowired
+    DataHolder dataHolder;
 
+    @Autowired
+    Exporter exporter;
 
     @Value("{file.export.location}")
     String exportFileLocation;
 
 
-    public void run(File importFile, File exportFile)
+    public void run(String exportFileLocation)
         throws Exception
     {
-        if ( importFile == null || exportFile == null) {
-            importFile = new File(importFileLocation);
-            exportFile = new File(exportFileLocation);
+        if (exportFileLocation == null) {
+            exportFileLocation = this.exportFileLocation;
         }
+        File exportFile = new File(exportFileLocation);
 
-        List<Movie> importList = dataLoader.load(importFile);
+        File file = new ClassPathResource("movielens/movies_links.csv").getFile();
 
-        List<Movie> exportList = new ArrayList<>();
-        for (Movie movie : importList) {
+        List<Movie> list = dataLoader.load(file);
+        dataHolder.put(list);
 
+        List<Movie> list4Getter = dataHolder.getImgNullMovies();
+
+        logger.info("We have {} movies in file", list.size() - 1);
+        logger.info("{} movies in database", dataHolder.size());
+        logger.info("{} / {} of movies do not have imgUrl", list4Getter.size(), list.size());
+
+        AtomicInteger cnt = new AtomicInteger(0);
+        for (Movie movie : list4Getter) {
             try {
-                exportList.add(imdbGetter.getDataById(movie.getImdbId()));
+                dataHolder.put(imdbGetter.getDataByObject(movie));
+                Thread.sleep(1000L); // preventing waf
             } catch (HttpStatusException ex) {
                 logger.error("HttpStatusException {} for url {}, movie =>{}", ex.getStatusCode(), ex.getUrl(), movie.toString());
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-
+            if (cnt.incrementAndGet() % 100 == 0) {
+                logger.info("getting data ... {} / {}", cnt.get(), list4Getter.size());
+            }
         }
+
+        List<Movie> exportList = dataHolder.getAll();
+
+        exporter.export(exportFile, exportList);
 
     }
 
