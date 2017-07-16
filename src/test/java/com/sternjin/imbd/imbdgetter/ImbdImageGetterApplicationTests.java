@@ -1,35 +1,69 @@
 package com.sternjin.imbd.imbdgetter;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.jsoup.HttpStatusException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.util.Assert;
 
 import com.sternjin.imbd.imbdgetter.domain.Movie;
 
 @RunWith(SpringRunner.class)
-@SpringBootTest(classes = { ImdbGetterAppConfig.class })
+@SpringBootTest(classes = { ImdbGetterApplication.class })
 public class ImbdImageGetterApplicationTests {
+
+    Logger logger = LoggerFactory.getLogger(getClass());
 
     @Test
     public void contextLoads() {
     }
 
     @Autowired
-    ImdbGetter getter;
+    ImdbGetter imdbGetter;
+
+    @Autowired
+    DataLoader dataLoader;
+
+    @Autowired
+    Exporter exporter;
+
 
     @Test
-    public void getImage()
-        throws Exception
+    public void getAndSet()
+        throws IOException
     {
-        String id = "tt0468569";
-        String assertImage = "https://images-na.ssl-images-amazon.com/images/M/MV5BMTMxNTMwODM0NF5BMl5BanBnXkFtZTcwODAyMTk2Mw@@._V1_UX182_CR0,0,182,268_AL_.jpg";
+        File file = new ClassPathResource("movielens/movies_links_test.csv").getFile();
 
-        Movie movie = getter.getDataById(id);
+        List<Movie> list = dataLoader.load(file);
 
-        Assert.isTrue(movie.getImgUrl().equals(assertImage), "TRUE");
+        for (Movie m : list) {
+            System.out.println(m.toString());
+        }
+
+        List<Movie> exportList = new ArrayList<>();
+        for (Movie movie : list) {
+            try {
+                exportList.add(imdbGetter.getDataByObject(movie));
+            } catch (HttpStatusException ex) {
+                logger.error("HttpStatusException {} for url {}, movie =>{}", ex.getStatusCode(), ex.getUrl(), movie.toString());
+            }
+        }
+
+        for (Movie m : exportList) {
+            System.out.println(m.toString());
+        }
+
+        File exportFile = new File("/Users/zinc/Downloads/tmp.csv");
+        exporter.export(exportFile, exportList);
 
     }
 

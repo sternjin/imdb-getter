@@ -4,11 +4,9 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 
 /**
- * Created by zinc on 02/07/2017.
+ * Created by zinc on 12/07/2017.
  */
-
 @EnableAutoConfiguration
-public class ImdbGetterAppConfig {
-
-
+public class TestConfig {
+    
 }

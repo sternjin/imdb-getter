@@ -15,4 +15,7 @@ public interface ImdbGetter {
     public Movie getDataById(String id)
         throws IOException;
 
+    public Movie getDataByObject(Movie movie)
+        throws IOException;
+
 }
