@@ -5,6 +5,8 @@ import java.io.IOException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.sternjin.imbd.imbdgetter.domain.Movie;
@@ -16,6 +18,8 @@ import com.sternjin.imbd.imbdgetter.domain.Movie;
 public class ImdbGetterImpl
     implements ImdbGetter
 {
+
+    Logger logger = LoggerFactory.getLogger(getClass());
     public static final String VAR_ID = "${id}";
 
     @Override public Movie getDataByName(String name)
@@ -37,19 +41,21 @@ public class ImdbGetterImpl
     }
 
     private Movie getData(Movie movie)
-        throws IOException
     {
-
         String baseUrl = String.format("http://www.imdb.com/title/tt%s/", VAR_ID);
         String url = baseUrl.replace(VAR_ID, movie.getImdbId());
+        try {
 
-        Document doc = Jsoup.connect(url).get();
-        Element overview = doc.getElementById("title-overview-widget");
-        Element poster = overview.getElementsByClass("poster").first();
-        Element img = poster.getElementsByTag("img").first();
+            Document doc = Jsoup.connect(url).get();
+            Element overview = doc.getElementById("title-overview-widget");
+            Element poster = overview.getElementsByClass("poster").first();
+            Element img = poster.getElementsByTag("img").first();
 
-        String imgUrl = img.attr("src");
-        movie.setImgUrl(imgUrl);
+            String imgUrl = img.attr("src");
+            movie.setImgUrl(imgUrl);
+        } catch (Exception e) {
+            logger.error("Cannot get image for movie id : {}, url : {}", movie.getId(), url);
+        }
 
         return movie;
     }
