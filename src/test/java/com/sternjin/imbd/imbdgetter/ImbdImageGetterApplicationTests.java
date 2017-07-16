@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jsoup.HttpStatusException;
 import org.junit.Test;
@@ -36,31 +37,40 @@ public class ImbdImageGetterApplicationTests {
     @Autowired
     Exporter exporter;
 
+    @Autowired
+    DataHolder dataHolder;
 
     @Test
     public void getAndSet()
         throws IOException
     {
-        File file = new ClassPathResource("movielens/movies_links_test.csv").getFile();
+        File file = new ClassPathResource("movielens/movies_links.csv").getFile();
 
         List<Movie> list = dataLoader.load(file);
+        dataHolder.put(list);
 
-        for (Movie m : list) {
-            System.out.println(m.toString());
-        }
+        List<Movie> list4Getter = dataHolder.getImgNullMovies();
 
-        List<Movie> exportList = new ArrayList<>();
-        for (Movie movie : list) {
+        logger.info("We have {} movies in file", list.size() - 1);
+        logger.info("{} movies in database", dataHolder.size());
+        logger.info("{} / {} of movies do not have imgUrl", list4Getter.size(), list.size());
+
+        AtomicInteger cnt = new AtomicInteger(0);
+        for (Movie movie : list4Getter) {
             try {
-                exportList.add(imdbGetter.getDataByObject(movie));
+                dataHolder.put(imdbGetter.getDataByObject(movie));
+                Thread.sleep(1000L); // preventing waf
             } catch (HttpStatusException ex) {
                 logger.error("HttpStatusException {} for url {}, movie =>{}", ex.getStatusCode(), ex.getUrl(), movie.toString());
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            if (cnt.incrementAndGet() % 100 == 0) {
+                logger.info("getting data ... {} / {}", cnt.get(), list4Getter.size());
             }
         }
 
-        for (Movie m : exportList) {
-            System.out.println(m.toString());
-        }
+        List<Movie> exportList = dataHolder.getAll();
 
         File exportFile = new File("/Users/zinc/Downloads/tmp.csv");
         exporter.export(exportFile, exportList);

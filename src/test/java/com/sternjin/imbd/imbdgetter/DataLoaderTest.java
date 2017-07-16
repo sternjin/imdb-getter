@@ -21,17 +21,26 @@ import com.sternjin.imbd.imbdgetter.domain.Movie;
 public class DataLoaderTest {
 
     @Autowired
+    DataHolder dataHolder;
+    @Autowired
     DataLoader dataLoader;
 
     @Test
     public void loadData()
         throws IOException
     {
-        File file = new ClassPathResource("movielens/movies_test.csv").getFile();
+        File file = new ClassPathResource("movielens/movies_links_test.csv").getFile();
 
         List<Movie> list = dataLoader.load(file);
 
         for (Movie m : list) {
+            System.out.println(m.toString());
+        }
+
+        dataHolder.put(list);
+
+        List<Movie> holdList = dataHolder.getAll();
+        for (Movie m : holdList) {
             System.out.println(m.toString());
         }
 
